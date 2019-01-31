@@ -1,8 +1,9 @@
+import config
 import cv2 as cv
 import numpy as np
 import os
 from detectors import SkeletonDetector, BODY_MODEL
-from video_source import StereoCapture
+from stereo import DisparityCalculator, StereoCapture, StereoParams
 
 ROOT_DIR = os.path.dirname(__file__)
 
@@ -55,15 +56,29 @@ def main():
 
     skeleton_detector = SkeletonDetector(skeleton_model_path, (96, 64), 6)
 
-    cap = StereoCapture(0, intrinsics_path, extrinsics_path)
+    stereo_params = StereoParams(intrinsics_path, extrinsics_path)
+
+    disp_calc = DisparityCalculator(**config.SGBM_params)
+    cap = StereoCapture(0, stereo_params)
     while True:
         ret, (left_frame, right_frame) = cap.read()
         if not ret:
             break
 
-        disparity_map = None  # calculate somehow
+        disparity_map = disp_calc(left_frame, right_frame)
 
         people = skeleton_detector(left_frame, disparity_map)
+
+        people_bboxes = []
+        for person in people:
+            head = person[0]
+            neck = person[1]
+            if head is not None and neck is not None:
+                dist = np.linalg.norm(np.array(head)-neck)
+                bbox = [head[0]-dist, head[1]-dist, head[0]+dist, head[1]+dist]
+            else:
+                bbox = None
+            people_bboxes.append(bbox)
 
         display_image = draw_skeleton(left_frame, people)
 
