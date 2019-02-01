@@ -10,5 +10,8 @@ SGBM_params = dict(
     speckle_win_size=0,
     speckle_range=0,
     disp12_max_diff=-1,
-    mode=0
+    mode=0,
+
+    wls_lambda=8000.0,
+    wls_sigma=1.5
 )

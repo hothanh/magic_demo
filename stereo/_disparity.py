@@ -1,4 +1,11 @@
 import cv2 as cv
+import numpy as np
+
+
+def prepare_for_vis(disp):
+    disp = disp.copy()
+    cv.normalize(disp, dst=disp, beta=0, alpha=255, norm_type=cv.NORM_MINMAX)
+    return np.uint8(disp)
 
 
 class DisparityCalculator:
@@ -17,11 +24,25 @@ class DisparityCalculator:
         self._sgbm.setDisp12MaxDiff(kwargs.get('disp12_max_diff', 1))
         self._sgbm.setMode(kwargs.get('mode', 1))
 
-        # TODO : init matchers and etc.
-        # http://timosam.com/python_opencv_depthimage
-        # https://github.com/hothanh/OpenCV_Depth/blob/master/stereo_depth_v2.cpp
+        if not hasattr(cv, 'ximgproc'):
+            self._right_matcher = None
+        else:
+            self._right_matcher = cv.ximgproc.createRightMatcher(self._sgbm)
+
+            self._wls_filter = cv.ximgproc.createDisparityWLSFilter(matcher_left=self._sgbm)
+            self._wls_filter.setLambda(kwargs.get('wls_lambda', 8000.0))
+            self._wls_filter.setSigmaColor(kwargs.get('wls_sigma', 1.5))
 
     def __call__(self, left_frame, right_frame):
-        disp = self._sgbm.compute(left_frame, right_frame)
-        # TODO : apply matchers and filter
-        return disp
+        left_disp = self._sgbm.compute(left_frame, right_frame)
+        if self._right_matcher is None:
+            return left_disp
+        else:
+            right_disp = self._right_matcher.compute(right_frame, left_frame)
+
+            left_disp = np.int16(left_disp)
+            right_disp = np.int16(right_disp)
+
+            disp = self._wls_filter.filter(left_disp, left_frame, None, right_disp)
+
+            return disp

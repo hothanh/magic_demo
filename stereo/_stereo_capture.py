@@ -23,13 +23,13 @@ class StereoCapture:
         if not ret:
             return ret, (frame, frame)
         else:
-            _, left, right = cv.split(frame)
+            _, first, second = cv.split(frame)
 
             if self._stereo_params is None:
-                return ret, (left, right)
+                return ret, (second, first)
             else:
-                left = self._stereo_params.remap_left(left)
-                right = self._stereo_params.remap_right(right)
+                right = self._stereo_params.remap_right(first)
+                left = self._stereo_params.remap_left(second)
 
                 return ret, (left, right)
 
