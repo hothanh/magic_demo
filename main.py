@@ -3,7 +3,7 @@ import cv2 as cv
 import numpy as np
 import os
 from detectors import SkeletonDetector, BODY_MODEL
-from stereo import DisparityCalculator, StereoCapture, StereoParams
+from stereo import DisparityCalculator, StereoCapture, StereoParams, prepare_for_vis
 
 ROOT_DIR = os.path.dirname(__file__)
 
@@ -67,7 +67,7 @@ def main():
 
         disparity_map = disp_calc(left_frame, right_frame)
 
-        people = skeleton_detector(left_frame, disparity_map)
+        people = skeleton_detector(left_frame, prepare_for_vis(disparity_map))
 
         people_bboxes = []
         for person in people:
