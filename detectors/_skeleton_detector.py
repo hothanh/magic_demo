@@ -57,6 +57,7 @@ class SkeletonDetector:
 
         joints_map = np.transpose(joints_map, [0, 2, 3, 1])[0]
         bones_map = np.transpose(bones_map, [0, 2, 3, 1])[0]
+        bones_map = np.reshape(bones_map, [bones_map.shape[0], bones_map.shape[1], bones_map.shape[2]//2, 2])
 
         people = get_humans(joints_map, bones_map, BODY_EDGES, BODY_MODEL)
         people = [

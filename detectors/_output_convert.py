@@ -2,13 +2,14 @@ import numpy as np
 
 from scipy.ndimage import maximum_filter
 
+
 def non_max_suppression(plain, window_size, threshold):
     under_threshold_indices = plain <= threshold
     plain[under_threshold_indices] = 0
     return plain * (plain == maximum_filter(plain, footprint=np.ones((window_size, window_size))))
 
 
-def estimate(heat_mat, threshold = 0.5, adaptive_threshold=False):
+def estimate(heat_mat, threshold=0.5, adaptive_threshold=False):
     if adaptive_threshold:
         _threshold = max(np.min(np.mean(heat_mat, axis=(0, 1)) * 4.0), threshold)
         _threshold = min(_threshold, 0.3)
@@ -26,12 +27,13 @@ def estimate(heat_mat, threshold = 0.5, adaptive_threshold=False):
             coords.append(list(zip(list(x), list(y))))
         else:
             coords.append([])
-        
+
     return coords
+
 
 def get_score(x1, y1, x2, y2, paf_mat_x, paf_mat_y):
     import math
-    
+
     Local_PAF_Threshold = 0.2
     __num_inter = 10
     __num_inter_f = float(__num_inter)
@@ -49,26 +51,27 @@ def get_score(x1, y1, x2, y2, paf_mat_x, paf_mat_y):
     ys = (ys + 0.5).astype(np.int8)
 
     # without vectorization
-    pafXs = np.zeros(__num_inter)
-    pafYs = np.zeros(__num_inter)
-    for idx, (mx, my) in enumerate(zip(xs, ys)):
-        pafXs[idx] = paf_mat_x[my][mx]
-        pafYs[idx] = paf_mat_y[my][mx]
+    #pafXs = np.zeros(__num_inter)
+    #pafYs = np.zeros(__num_inter)
+    # for idx, (mx, my) in enumerate(zip(xs, ys)):
+    #    pafXs[idx] = paf_mat_x[my][mx]
+    #    pafYs[idx] = paf_mat_y[my][mx]
 
     # vectorization slow?
-    # pafXs = pafMatX[ys, xs]
-    # pafYs = pafMatY[ys, xs]
+    pafXs = paf_mat_x[ys, xs]
+    pafYs = paf_mat_y[ys, xs]
 
     local_scores = pafXs * vx + pafYs * vy
     thidxs = local_scores > Local_PAF_Threshold
 
     return sum(local_scores * thidxs), sum(thidxs)
 
+
 def score_pairs(e, i, j, points, L, S, rescale=(1.0, 1.0)):
     part_idx1 = i
     part_idx2 = j
-    coord_list1= points[i]
-    coord_list2 = points[j] 
+    coord_list1 = points[i]
+    coord_list2 = points[j]
     paf_mat_x = L[..., e, 0]
     paf_mat_y = L[..., e, 1]
     heatmap = S
@@ -103,6 +106,7 @@ def score_pairs(e, i, j, points, L, S, rescale=(1.0, 1.0)):
 
     return connection
 
+
 def get_merges_list(humans, PARTS_LIST):
     merges_list = []
     for h1 in range(len(humans)-1):
@@ -112,13 +116,14 @@ def get_merges_list(humans, PARTS_LIST):
                     merges_list.append((i, (h1, h2)))
     return merges_list
 
+
 def get_humans(S, L, BODY_EDGES, PARTS_LIST):
     points = estimate(S)
     edges = []
 
-    for e, (i,j) in enumerate(BODY_EDGES):
+    for e, (i, j) in enumerate(BODY_EDGES):
         edges.append(score_pairs(e, i, j, points, L, S))
-    
+
     humans = []
     for e, edge in enumerate(edges):
         used_edge_idxs = []
@@ -137,7 +142,7 @@ def get_humans(S, L, BODY_EDGES, PARTS_LIST):
                 humans.append([None]*len(PARTS_LIST))
                 humans[-1][human_edge['joint_start']] = human_edge['point_ind_start']
                 humans[-1][human_edge['joint_end']] = human_edge['point_ind_end']
-    
+
     merges_list = get_merges_list(humans, PARTS_LIST)
     while merges_list:
         new_humans = []
@@ -158,11 +163,11 @@ def get_humans(S, L, BODY_EDGES, PARTS_LIST):
                 continue
 
             r_list = []
-            
+
             for j in range(len(PARTS_LIST)):
-                if h1[j] is None or j == i: 
+                if h1[j] is None or j == i:
                     r_list.append(h2[j])
-                    
+
                 elif h2[j] is None:
                     r_list.append(h1[j])
                 else:
@@ -175,6 +180,6 @@ def get_humans(S, L, BODY_EDGES, PARTS_LIST):
         humans = new_humans
 
         merges_list = get_merges_list(humans, PARTS_LIST)
-    
+
     humans = [[(points[i][j] if j is not None else None) for i, j in enumerate(person)] for person in humans]
     return humans

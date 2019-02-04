@@ -15,3 +15,5 @@ SGBM_params = dict(
     wls_lambda=8000.0,
     wls_sigma=1.5
 )
+
+DEBUG_WRITE = True
