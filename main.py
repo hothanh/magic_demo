@@ -43,8 +43,14 @@ def draw_skeleton(image, people_joints):
     return rendered
 
 
+def min_max_norm(x):
+    mn, mx = x.min(), x.max()
+    return (x - mn) / (mx - mn)
+
+
 def main():
-    skeleton_model_path = os.path.join(ROOT_DIR, 'models', 'pose-unet-64x96.pb')
+    skeleton_model_path = os.path.join(
+        ROOT_DIR, 'models', 'pose-unet-128x160.pb')  # pose-unet-64x96.pb')
     if not os.path.exists(skeleton_model_path):
         raise RuntimeError('Can\'t find a skeleton detector model!')
 
@@ -56,12 +62,16 @@ def main():
     if not os.path.exists(extrinsics_path):
         raise RuntimeError('Can\'t find a extrinsics file!')
 
-    skeleton_detector = SkeletonDetector(skeleton_model_path, (96, 64), 6)
+    skeleton_detector = SkeletonDetector(skeleton_model_path, (160, 128), 8)
 
     stereo_params = StereoParams(intrinsics_path, extrinsics_path)
 
     disp_calc = DisparityCalculator(**config.SGBM_params)
-    cap = StereoCapture(0, stereo_params)
+
+    if isinstance(config.VIDEO_SOURCE, int):
+        cap = StereoCapture(config.VIDEO_SOURCE, stereo_params)
+    else:
+        cap = StereoCapture(config.VIDEO_SOURCE)
 
     print('Capture: (%i, %i) %.2f' % (int(
         cap.get(cv.CAP_PROP_FRAME_WIDTH)), int(cap.get(cv.CAP_PROP_FRAME_HEIGHT)), cap.get(cv.CAP_PROP_FPS)), flush=True)
@@ -70,7 +80,7 @@ def main():
         writer = 0
         disp_writer = None
         left_writer = None
-        rigt_writer = None
+        right_writer = None
 
     try:
         print('Processing is started.', flush=True)
@@ -84,12 +94,11 @@ def main():
                 break
 
             disp_start = time.time()
-            disparity_map = disp_calc(cv.pyrDown(left_frame), cv.pyrDown(right_frame))
-            disparity_map = cv.pyrUp(disparity_map)
+            disparity_map = disp_calc(left_frame, right_frame)
             disp_elapsed = time.time() - disp_start
 
             skeleton_start = time.time()
-            people = skeleton_detector(left_frame, prepare_for_vis(disparity_map))
+            people, (joints_map, bones_map) = skeleton_detector(left_frame, ret_maps=True)
             skeleton_elapsed = time.time() - skeleton_start
 
             people_bboxes = []
@@ -113,7 +122,13 @@ def main():
 
             display_image = draw_skeleton(left_frame, people)
 
+            display_image[..., 2] = np.uint8(
+                255*np.clip((np.float32(display_image[..., 2]) / 255) + 0.9*min_max_norm(np.max(joints_map, axis=-1)), 0, 1))
+            display_image[..., 1] = np.uint8(
+                255*np.clip((np.float32(display_image[..., 1]) / 255) + 0.5*min_max_norm(np.max(np.linalg.norm(bones_map, axis=-1), axis=-1)), 0, 1))
+
             cv.imshow('demo', display_image)
+            cv.imshow('disparity', prepare_for_vis(disparity_map))
 
             if config.DEBUG_WRITE:
                 if isinstance(writer, int):

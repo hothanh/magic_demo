@@ -2,8 +2,8 @@
 SGBM_params = dict(
     pre_filter_cap=0,
     block_size=5,
-    P1=0,
-    P2=0,
+    P1=120,
+    P2=240,
     mininum_disparity=-5,
     number_of_disparities=32,
     uniqe_ratio=0,
@@ -17,3 +17,9 @@ SGBM_params = dict(
 )
 
 DEBUG_WRITE = True
+
+#VIDEO_SOURCE = 0
+VIDEO_SOURCE = (
+    '/home/sushik/Projects/Mesut Yilmaz/demo/test_videos/1/demo-lefts.mp4',
+    '/home/sushik/Projects/Mesut Yilmaz/demo/test_videos/1/demo-rights.mp4'
+)

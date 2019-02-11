@@ -3,6 +3,8 @@
 .vs/
 .vscode/
 
+test_videos/
+
 training/
 training*/
 pretrained/
@@ -10,6 +12,8 @@ pretrained/
 .cache/
 *.cache
 
+*.mp4
+config.py
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

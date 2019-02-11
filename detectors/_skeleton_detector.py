@@ -36,16 +36,13 @@ class SkeletonDetector:
         self._image_size = (image_size[0], image_size[1])
         self._n_threads = n_threads
 
-    def __call__(self, gray_image, disparity_map):
+    def __call__(self, gray_image, ret_maps=False):
         orig_shape = gray_image.shape
 
-        gray_image = cv.resize(gray_image, self._image_size)
-        disparity_map = cv.resize(disparity_map, self._image_size)
+        gray_image = cv.resize(gray_image, self._image_size, interpolation=cv.INTER_LINEAR)
 
         blob = cv.dnn.blobFromImage(gray_image, 1, self._image_size)
         self._net.setInput(blob, 'model/inputs/gray')
-        blob = cv.dnn.blobFromImage(disparity_map, 1, self._image_size)
-        self._net.setInput(blob, 'model/inputs/disparity')
 
         old = cv.getNumThreads()
         if self._n_threads is not None:
@@ -56,12 +53,20 @@ class SkeletonDetector:
         cv.setNumThreads(old)
 
         joints_map = np.transpose(joints_map, [0, 2, 3, 1])[0]
+
         bones_map = np.transpose(bones_map, [0, 2, 3, 1])[0]
         bones_map = np.reshape(bones_map, [bones_map.shape[0], bones_map.shape[1], bones_map.shape[2]//2, 2])
 
         people = get_humans(joints_map, bones_map, BODY_EDGES, BODY_MODEL)
         people = [
-            [((joint[0] * orig_shape[1] / self._image_size[0],  joint[1] * orig_shape[0] / self._image_size[1]) if joint is not None else None)
+            [((joint[0] * orig_shape[1] / joints_map.shape[1],  joint[1] * orig_shape[0] / joints_map.shape[0]) if joint is not None else None)
              for joint in person] for person in people
         ]
-        return people
+        if not ret_maps:
+            return people
+        else:
+            joints_map = cv.resize(joints_map, (orig_shape[1], orig_shape[0]), interpolation=cv.INTER_LINEAR)
+            bones_map = np.reshape(bones_map, [bones_map.shape[0], bones_map.shape[1], bones_map.shape[2]*2])
+            bones_map = cv.resize(bones_map, (orig_shape[1], orig_shape[0]), interpolation=cv.INTER_LINEAR)
+            bones_map = np.reshape(bones_map, [bones_map.shape[0], bones_map.shape[1], bones_map.shape[2]//2, 2])
+            return people, (joints_map, bones_map)
