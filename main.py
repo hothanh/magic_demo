@@ -5,6 +5,7 @@ import os
 from detectors import SkeletonDetector, BODY_MODEL
 from stereo import DisparityCalculator, StereoCapture, StereoParams, prepare_for_vis
 import time
+import random
 
 ROOT_DIR = os.path.dirname(__file__)
 
@@ -48,9 +49,40 @@ def min_max_norm(x):
     return (x - mn) / (mx - mn)
 
 
+def get_iou(bbox1, bbox2):
+    x1, y1, w1, h1 = bbox1
+    x2, y2, w2, h2 = bbox2
+
+    xy1 = np.array([x1, y1], np.float32)
+    wh1 = np.array([w1, h1], np.float32)
+
+    xy2 = np.array([x2, y2], np.float32)
+    wh2 = np.array([w2, h2], np.float32)
+
+    mins1 = xy1
+    maxes1 = xy1 + wh1
+
+    mins2 = xy2
+    maxes2 = xy2 + wh2
+
+    intersect_mins = np.maximum(mins1, mins2)
+    intersect_maxes = np.minimum(maxes1, maxes2)
+    intersect_wh = np.maximum(0, intersect_maxes - intersect_mins)
+
+    intersect_areas = np.prod(intersect_wh)
+
+    areas1 = np.prod(wh1)
+    areas2 = np.prod(wh2)
+
+    union_areas = areas1 + areas2 - intersect_areas
+
+    iou = intersect_areas / np.maximum(union_areas, 1e-6)
+
+    return iou
+
+
 def main():
-    skeleton_model_path = os.path.join(
-        ROOT_DIR, 'models', 'pose-unet-128x160.pb')  # pose-unet-64x96.pb')
+    skeleton_model_path = os.path.join(ROOT_DIR, 'models', 'pose-unet-128x160.pb')
     if not os.path.exists(skeleton_model_path):
         raise RuntimeError('Can\'t find a skeleton detector model!')
 
@@ -85,6 +117,10 @@ def main():
     try:
         print('Processing is started.', flush=True)
 
+        people = []
+        last_id = 0
+        key = None
+
         start = time.time()
         while True:
             cap_start = time.time()
@@ -93,39 +129,98 @@ def main():
             if not ret:
                 break
 
+            # disparity calculation
+
             disp_start = time.time()
             disparity_map = disp_calc(left_frame, right_frame)
             disp_elapsed = time.time() - disp_start
 
+            # skeleton detection
+
             skeleton_start = time.time()
-            people, (joints_map, bones_map) = skeleton_detector(left_frame, ret_maps=True)
+            frame_people_skeletons, (joints_map, bones_map) = skeleton_detector(left_frame, ret_maps=True)
             skeleton_elapsed = time.time() - skeleton_start
 
-            people_bboxes = []
-            for person in people:
+            # tracking
+
+            tracking_start = time.time()
+
+            frame_people = []
+            for person in frame_people_skeletons:
                 head = person[0]
                 neck = person[1]
+
                 if head is not None and neck is not None:
-                    dist = np.linalg.norm(np.array(head)-neck)
+                    dist = np.linalg.norm(np.array(head)-neck) * 0.75
                     bbox = [head[0]-dist, head[1]-dist, head[0]+dist, head[1]+dist]
-                else:
-                    bbox = None
-                people_bboxes.append(bbox)
+
+                    frame_people.append((bbox, person))
+
+            if not people:
+                people = list(zip(range(last_id, len(frame_people)), frame_people, [None]*len(frame_people)))
+                last_id = last_id + len(frame_people)
+            else:
+                new_people = []
+                if frame_people:
+                    for i in range(len(people)):
+                        person = people[i]
+
+                        best_j = None
+                        best_iou = 0
+                        for j in range(len(frame_people)):
+                            iou = get_iou(person[1][0], frame_people[j][0])
+                            if max(0, iou - 0.5) > 0 and best_iou < iou:
+                                best_iou = iou
+                                best_j = j
+
+                        new_people.append((person[0], frame_people[best_j], person[2]))
+                        del frame_people[best_j]
+
+                    last_id = max(new_people, key=lambda x: x[0])[0]+1
+                    for person in frame_people:
+                        new_people.append((last_id, person, None))
+                        last_id += 1
+
+                people = new_people
+
+            tracking_elapsed = time.time() - tracking_start
+
+            # age & gender detection
+
+            if key is not None and key & 0xFF == ord('d'):
+                age_gender_start = time.time()
+                # TODO : detection
+                age_gender_elapsed = time.time() - age_gender_start
+            else:
+                age_gender_elapsed = 1e-3
 
             end = time.time()
             elapsed = end - start
             frame_elapsed = end - cap_start
             start = end
 
-            print('\rFPS: %.2f; CAP: %.2f; DISP: %.2f; SKLTN: %.2f; FRAME: %.2f' %
-                  (1/elapsed, 1/cap_elapsed, 1/disp_elapsed, 1/skeleton_elapsed, 1/frame_elapsed), end='', flush=True)
+            print('\rFPS: %.2f; CAP: %.2f; DISP: %.2f; SKLTN: %.2f; TRACK: %.2f; AGE: %.2f; FRAME: %.2f' %
+                  (1/elapsed, 1/cap_elapsed, 1/disp_elapsed, 1/skeleton_elapsed, 1/tracking_elapsed, 1/age_gender_elapsed, 1/frame_elapsed), end='', flush=True)
 
-            display_image = draw_skeleton(left_frame, people)
+            _, people_data, _ = zip(*people)
+            _, skeletons = zip(*people_data)
+
+            display_image = draw_skeleton(left_frame, skeletons)
 
             display_image[..., 2] = np.uint8(
                 255*np.clip((np.float32(display_image[..., 2]) / 255) + 0.9*min_max_norm(np.max(joints_map, axis=-1)), 0, 1))
             display_image[..., 1] = np.uint8(
                 255*np.clip((np.float32(display_image[..., 1]) / 255) + 0.5*min_max_norm(np.max(np.linalg.norm(bones_map, axis=-1), axis=-1)), 0, 1))
+
+            for id_, (bbox, _), extra in people:
+                cv.rectangle(display_image, (int(bbox[0]), int(bbox[1])), (int(bbox[2]), int(bbox[3])), (32, 32, 225))
+
+                person_line = ('#%i' % id_)
+                if extra is not None:
+                    pass
+
+                cv.putText(display_image, person_line, (int(bbox[0])+5, int(bbox[1])+16),
+                           cv.FONT_HERSHEY_SIMPLEX, 0.5, (160, 32, 225), 2)
 
             cv.imshow('demo', display_image)
             cv.imshow('disparity', prepare_for_vis(disparity_map))
