@@ -2,7 +2,7 @@ import config
 import cv2 as cv
 import numpy as np
 import os
-from detectors import SkeletonDetector, BODY_MODEL
+from detectors import AgeGenderPredictor, SkeletonDetector, BODY_MODEL
 from stereo import DisparityCalculator, StereoCapture, StereoParams, prepare_for_vis
 import time
 import random
@@ -82,10 +82,6 @@ def get_iou(bbox1, bbox2):
 
 
 def main():
-    skeleton_model_path = os.path.join(ROOT_DIR, 'models', 'pose-unet-128x160.pb')
-    if not os.path.exists(skeleton_model_path):
-        raise RuntimeError('Can\'t find a skeleton detector model!')
-
     intrinsics_path = os.path.join(ROOT_DIR, 'models', 'intrinsics.yml')
     if not os.path.exists(intrinsics_path):
         raise RuntimeError('Can\'t find a intrinsics file!')
@@ -94,7 +90,38 @@ def main():
     if not os.path.exists(extrinsics_path):
         raise RuntimeError('Can\'t find a extrinsics file!')
 
+    skeleton_model_path = os.path.join(ROOT_DIR, 'models', 'pose-unet-128x160.pb')
+    if not os.path.exists(skeleton_model_path):
+        raise RuntimeError('Can\'t find a skeleton detector model!')
+
+    facial_landmarks_model_path = os.path.join(ROOT_DIR, 'models', 'shape_predictor_68_face_landmarks.dat')
+    if not os.path.exists(facial_landmarks_model_path):
+        raise RuntimeError('Can\'t find a facial landmark detection model!')
+
+    age_pca_path = os.path.join(ROOT_DIR, 'models', 'agedb-pca.pkl')
+    if not os.path.exists(age_pca_path):
+        raise RuntimeError('Can\'t find an age pca model!')
+
+    gender_svm_path = os.path.join(ROOT_DIR, 'models', 'agedb-gender_svm.pkl')
+    if not os.path.exists(gender_svm_path):
+        raise RuntimeError('Can\'t find a gender svm model!')
+
+    age_svm_path = os.path.join(ROOT_DIR, 'models', 'agedb-svm.pkl')
+    if not os.path.exists(age_svm_path):
+        raise RuntimeError('Can\'t find an age svm model!')
+
+    age_svr_path = os.path.join(ROOT_DIR, 'models', 'agedb-svr.pkl')
+    if not os.path.exists(age_svr_path):
+        raise RuntimeError('Can\'t find an age svr model!')
+
+    age_features_stat_path = os.path.join(ROOT_DIR, 'models', 'agedb-mean_std.npz')
+    if not os.path.exists(age_features_stat_path):
+        raise RuntimeError('Can\'t find an age features statistics file!')
+
     skeleton_detector = SkeletonDetector(skeleton_model_path, (160, 128), 8)
+
+    age_gender_predictor = AgeGenderPredictor(
+        facial_landmarks_model_path, age_pca_path, gender_svm_path, age_svm_path, age_svr_path, age_features_stat_path)
 
     stereo_params = StereoParams(intrinsics_path, extrinsics_path)
 
@@ -151,8 +178,8 @@ def main():
                 neck = person[1]
 
                 if head is not None and neck is not None:
-                    dist = np.linalg.norm(np.array(head)-neck) * 0.75
-                    bbox = [head[0]-dist, head[1]-dist, head[0]+dist, head[1]+dist]
+                    dist = np.linalg.norm(np.array(head)-neck)  # * 0.75
+                    bbox = [head[0]-dist*0.75, head[1]-dist, head[0]+dist*0.75, head[1]+dist]
 
                     frame_people.append((bbox, person))
 
@@ -173,10 +200,12 @@ def main():
                                 best_iou = iou
                                 best_j = j
 
-                        new_people.append((person[0], frame_people[best_j], person[2]))
-                        del frame_people[best_j]
+                        if best_j is not None:
+                            new_people.append((person[0], frame_people[best_j], person[2]))
+                            del frame_people[best_j]
 
-                    last_id = max(new_people, key=lambda x: x[0])[0]+1
+                    if new_people:
+                        last_id = max(new_people, key=lambda x: x[0])[0]+1
                     for person in frame_people:
                         new_people.append((last_id, person, None))
                         last_id += 1
@@ -187,9 +216,17 @@ def main():
 
             # age & gender detection
 
-            if key is not None and key & 0xFF == ord('d'):
+            if people:  # key is not None and key & 0xFF == ord('d') and people:
                 age_gender_start = time.time()
-                # TODO : detection
+
+                _, people_data, _ = zip(*people)
+                people_bboxes, _ = zip(*people_data)
+
+                predictions = age_gender_predictor(left_frame, people_bboxes)
+
+                for i, gender, age in predictions:
+                    people[i] = (people[i][0], people[i][1], (gender, age))
+
                 age_gender_elapsed = time.time() - age_gender_start
             else:
                 age_gender_elapsed = 1e-3
@@ -202,25 +239,30 @@ def main():
             print('\rFPS: %.2f; CAP: %.2f; DISP: %.2f; SKLTN: %.2f; TRACK: %.2f; AGE: %.2f; FRAME: %.2f' %
                   (1/elapsed, 1/cap_elapsed, 1/disp_elapsed, 1/skeleton_elapsed, 1/tracking_elapsed, 1/age_gender_elapsed, 1/frame_elapsed), end='', flush=True)
 
-            _, people_data, _ = zip(*people)
-            _, skeletons = zip(*people_data)
+            if people:
+                _, people_data, _ = zip(*people)
+                _, skeletons = zip(*people_data)
 
-            display_image = draw_skeleton(left_frame, skeletons)
+                display_image = draw_skeleton(left_frame, skeletons)
 
-            display_image[..., 2] = np.uint8(
-                255*np.clip((np.float32(display_image[..., 2]) / 255) + 0.9*min_max_norm(np.max(joints_map, axis=-1)), 0, 1))
-            display_image[..., 1] = np.uint8(
-                255*np.clip((np.float32(display_image[..., 1]) / 255) + 0.5*min_max_norm(np.max(np.linalg.norm(bones_map, axis=-1), axis=-1)), 0, 1))
+                display_image[..., 2] = np.uint8(
+                    255*np.clip((np.float32(display_image[..., 2]) / 255) + 0.9*min_max_norm(np.max(joints_map, axis=-1)), 0, 1))
+                display_image[..., 1] = np.uint8(
+                    255*np.clip((np.float32(display_image[..., 1]) / 255) + 0.5*min_max_norm(np.max(np.linalg.norm(bones_map, axis=-1), axis=-1)), 0, 1))
 
-            for id_, (bbox, _), extra in people:
-                cv.rectangle(display_image, (int(bbox[0]), int(bbox[1])), (int(bbox[2]), int(bbox[3])), (32, 32, 225))
+                for id_, (bbox, _), extra in people:
+                    cv.rectangle(display_image, (int(bbox[0]), int(bbox[1])),
+                                 (int(bbox[2]), int(bbox[3])), (32, 32, 225))
 
-                person_line = ('#%i' % id_)
-                if extra is not None:
-                    pass
+                    person_line = ('#%i' % id_)
+                    if extra is not None:
+                        gender, age = extra
 
-                cv.putText(display_image, person_line, (int(bbox[0])+5, int(bbox[1])+16),
-                           cv.FONT_HERSHEY_SIMPLEX, 0.5, (160, 32, 225), 2)
+                        person_line = '%s a: %i' % (person_line, age)
+                        person_line = '%s %s' % (person_line, 'M' if gender == 1 else 'F')
+
+                    cv.putText(display_image, person_line, (int(bbox[0])+5, int(bbox[1])+16),
+                               cv.FONT_HERSHEY_SIMPLEX, 0.5, (160, 32, 225), 2)
 
             cv.imshow('demo', display_image)
             cv.imshow('disparity', prepare_for_vis(disparity_map))
@@ -243,7 +285,7 @@ def main():
                     left_writer.write(left_frame)
                     right_writer.write(right_frame)
 
-            key = cv.waitKey(1)
+            key = cv.waitKey(1000)
             if key == 27:
                 break
             if key & 0xFF == ord('q'):
