@@ -90,7 +90,7 @@ def main():
     if not os.path.exists(extrinsics_path):
         raise RuntimeError('Can\'t find a extrinsics file!')
 
-    skeleton_model_path = os.path.join(ROOT_DIR, 'models', 'pose-unet-64x80.pb')
+    skeleton_model_path = os.path.join(ROOT_DIR, 'models', 'pose-unet-128x160.pb')
     if not os.path.exists(skeleton_model_path):
         raise RuntimeError('Can\'t find a skeleton detector model!')
 
@@ -125,7 +125,8 @@ def main():
 
     stereo_params = StereoParams(intrinsics_path, extrinsics_path)
 
-    disp_calc = DisparityCalculator(**config.SGBM_params)
+    if config.ENABLE_DISPARITY:
+        disp_calc = DisparityCalculator(**config.SGBM_params)
 
     if isinstance(config.VIDEO_SOURCE, int):
         cap = StereoCapture(config.VIDEO_SOURCE, stereo_params)
@@ -137,7 +138,8 @@ def main():
 
     if config.DEBUG_WRITE:
         writer = 0
-        #disp_writer = None
+        if config.ENABLE_DISPARITY:
+            disp_writer = None
         left_writer = None
         right_writer = None
 
@@ -161,9 +163,12 @@ def main():
 
             # disparity calculation
 
-            disp_start = time.time()
-            disparity_map = disp_calc(left_frame, right_frame)
-            disp_elapsed = time.time() - disp_start
+            if config.ENABLE_DISPARITY:
+                disp_start = time.time()
+                disparity_map = disp_calc(left_frame, right_frame)
+                disp_elapsed = time.time() - disp_start
+            else:
+                disp_elapsed = 1e-3
 
             # skeleton detection
 
@@ -269,7 +274,8 @@ def main():
                                cv.FONT_HERSHEY_SIMPLEX, 0.5, (160, 32, 225), 2)
 
             cv.imshow('demo', display_image)
-            #cv.imshow('disparity', prepare_for_vis(disparity_map))
+            if config.ENABLE_DISPARITY:
+                cv.imshow('disparity', prepare_for_vis(disparity_map))
 
             if config.DEBUG_WRITE:
                 if isinstance(writer, int):
@@ -277,15 +283,17 @@ def main():
                     if writer > 2:
                         writer = cv.VideoWriter('./demo.mp4', cv.VideoWriter_fourcc(*'avc1'), 1/elapsed, (int(
                             cap.get(cv.CAP_PROP_FRAME_WIDTH)), int(cap.get(cv.CAP_PROP_FRAME_HEIGHT))))
-                        # disp_writer = cv.VideoWriter('./demo-disps.mp4', cv.VideoWriter_fourcc(*'avc1'), 1/elapsed, (int(
-                        #    cap.get(cv.CAP_PROP_FRAME_WIDTH)), int(cap.get(cv.CAP_PROP_FRAME_HEIGHT))), False)
+                        if config.ENABLE_DISPARITY:
+                            disp_writer = cv.VideoWriter('./demo-disps.mp4', cv.VideoWriter_fourcc(*'avc1'), 1/elapsed, (int(
+                                cap.get(cv.CAP_PROP_FRAME_WIDTH)), int(cap.get(cv.CAP_PROP_FRAME_HEIGHT))), False)
                         left_writer = cv.VideoWriter('./demo-lefts.mp4', cv.VideoWriter_fourcc(*'avc1'), 1/elapsed, (int(
                             cap.get(cv.CAP_PROP_FRAME_WIDTH)), int(cap.get(cv.CAP_PROP_FRAME_HEIGHT))), False)
                         right_writer = cv.VideoWriter('./demo-rights.mp4', cv.VideoWriter_fourcc(*'avc1'), 1/elapsed, (int(
                             cap.get(cv.CAP_PROP_FRAME_WIDTH)), int(cap.get(cv.CAP_PROP_FRAME_HEIGHT))), False)
                 else:
                     writer.write(display_image)
-                    # disp_writer.write(prepare_for_vis(disparity_map))
+                    if config.ENABLE_DISPARITY:
+                        disp_writer.write(prepare_for_vis(disparity_map))
                     left_writer.write(left_frame)
                     right_writer.write(right_frame)
 
@@ -302,7 +310,8 @@ def main():
         if config.DEBUG_WRITE:
             if not isinstance(writer, int):
                 writer.release()
-                # disp_writer.release()
+                if config.ENABLE_DISPARITY:
+                    disp_writer.release()
                 left_writer.release()
                 right_writer.release()
 

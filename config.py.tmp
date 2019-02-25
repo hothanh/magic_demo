@@ -16,6 +16,7 @@ SGBM_params = dict(
     wls_sigma=1.5
 )
 
+ENABLE_DISPARITY = True
 DEBUG_WRITE = True
 
 #VIDEO_SOURCE = 0
