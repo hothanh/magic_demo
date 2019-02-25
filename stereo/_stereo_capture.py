@@ -1,5 +1,6 @@
 import cv2 as cv
 import numpy as np
+import xunit
 
 
 class _StereoCaptureFileImpl:
@@ -62,6 +63,10 @@ class StereoCapture:
             self._stereo_params = None
         else:
             self._stereo_params = stereo_params
+        if not xunit.InitExtensionUnit('usb-c0030000.ehci-1.1'):
+            print('InitExtensionUnit failed')
+        if not xunit.SetAutoExposureStereo():
+            print('SetAutoExposureStereo failed')
 
     def get(self, prop):
         return self._cap.get(prop)
