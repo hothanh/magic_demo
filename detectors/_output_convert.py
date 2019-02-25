@@ -9,7 +9,7 @@ def non_max_suppression(plain, window_size, threshold):
     return plain * (plain == maximum_filter(plain, footprint=np.ones((window_size, window_size))))
 
 
-def estimate(heat_mat, threshold=0.5, adaptive_threshold=False):
+def estimate(heat_mat, threshold=0.3, adaptive_threshold=False):
     if adaptive_threshold:
         _threshold = max(np.min(np.mean(heat_mat, axis=(0, 1)) * 4.0), threshold)
         _threshold = min(_threshold, 0.3)

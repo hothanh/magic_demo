@@ -90,38 +90,38 @@ def main():
     if not os.path.exists(extrinsics_path):
         raise RuntimeError('Can\'t find a extrinsics file!')
 
-    skeleton_model_path = os.path.join(ROOT_DIR, 'models', 'pose-unet-128x160.pb')
+    skeleton_model_path = os.path.join(ROOT_DIR, 'models', 'pose-unet-64x80.pb')
     if not os.path.exists(skeleton_model_path):
         raise RuntimeError('Can\'t find a skeleton detector model!')
 
-    facial_landmarks_model_path = os.path.join(ROOT_DIR, 'models', 'shape_predictor_68_face_landmarks.dat')
-    if not os.path.exists(facial_landmarks_model_path):
-        raise RuntimeError('Can\'t find a facial landmark detection model!')
+    # facial_landmarks_model_path = os.path.join(ROOT_DIR, 'models', 'shape_predictor_68_face_landmarks.dat')
+    # if not os.path.exists(facial_landmarks_model_path):
+    #     raise RuntimeError('Can\'t find a facial landmark detection model!')
 
-    age_pca_path = os.path.join(ROOT_DIR, 'models', 'agedb-pca.pkl')
-    if not os.path.exists(age_pca_path):
-        raise RuntimeError('Can\'t find an age pca model!')
+    # age_pca_path = os.path.join(ROOT_DIR, 'models', 'agedb-pca.pkl')
+    # if not os.path.exists(age_pca_path):
+    #     raise RuntimeError('Can\'t find an age pca model!')
 
-    gender_svm_path = os.path.join(ROOT_DIR, 'models', 'agedb-gender_svm.pkl')
-    if not os.path.exists(gender_svm_path):
-        raise RuntimeError('Can\'t find a gender svm model!')
+    # gender_svm_path = os.path.join(ROOT_DIR, 'models', 'agedb-gender_svm.pkl')
+    # if not os.path.exists(gender_svm_path):
+    #     raise RuntimeError('Can\'t find a gender svm model!')
 
-    age_svm_path = os.path.join(ROOT_DIR, 'models', 'agedb-svm.pkl')
-    if not os.path.exists(age_svm_path):
-        raise RuntimeError('Can\'t find an age svm model!')
+    # age_svm_path = os.path.join(ROOT_DIR, 'models', 'agedb-svm.pkl')
+    # if not os.path.exists(age_svm_path):
+    #     raise RuntimeError('Can\'t find an age svm model!')
 
-    age_svr_path = os.path.join(ROOT_DIR, 'models', 'agedb-svr.pkl')
-    if not os.path.exists(age_svr_path):
-        raise RuntimeError('Can\'t find an age svr model!')
+    # age_svr_path = os.path.join(ROOT_DIR, 'models', 'agedb-svr.pkl')
+    # if not os.path.exists(age_svr_path):
+    #     raise RuntimeError('Can\'t find an age svr model!')
 
-    age_features_stat_path = os.path.join(ROOT_DIR, 'models', 'agedb-mean_std.npz')
-    if not os.path.exists(age_features_stat_path):
-        raise RuntimeError('Can\'t find an age features statistics file!')
+    # age_features_stat_path = os.path.join(ROOT_DIR, 'models', 'agedb-mean_std.npz')
+    # if not os.path.exists(age_features_stat_path):
+    #     raise RuntimeError('Can\'t find an age features statistics file!')
 
-    skeleton_detector = SkeletonDetector(skeleton_model_path, (160, 128), 8)
+    skeleton_detector = SkeletonDetector(skeleton_model_path, (80, 64), 8)
 
-    age_gender_predictor = AgeGenderPredictor(
-        facial_landmarks_model_path, age_pca_path, gender_svm_path, age_svm_path, age_svr_path, age_features_stat_path)
+    # age_gender_predictor = AgeGenderPredictor(
+    #     facial_landmarks_model_path, age_pca_path, gender_svm_path, age_svm_path, age_svr_path, age_features_stat_path)
 
     stereo_params = StereoParams(intrinsics_path, extrinsics_path)
 
@@ -137,7 +137,7 @@ def main():
 
     if config.DEBUG_WRITE:
         writer = 0
-        disp_writer = None
+        #disp_writer = None
         left_writer = None
         right_writer = None
 
@@ -155,6 +155,9 @@ def main():
             cap_elapsed = time.time() - cap_start
             if not ret:
                 break
+
+            left_frame = cv.resize(left_frame, (left_frame.shape[1]//2, left_frame.shape[0]//2))
+            right_frame = cv.resize(right_frame, (right_frame.shape[1]//2, right_frame.shape[0]//2))
 
             # disparity calculation
 
@@ -178,8 +181,8 @@ def main():
                 neck = person[1]
 
                 if head is not None and neck is not None:
-                    dist = np.linalg.norm(np.array(head)-neck)  # * 0.75
-                    bbox = [head[0]-dist*0.75, head[1]-dist, head[0]+dist*0.75, head[1]+dist]
+                    dist = np.linalg.norm(np.array(head)-neck) * 1.25
+                    bbox = [head[0]-dist, head[1]-dist, head[0]+dist, head[1]+dist]
 
                     frame_people.append((bbox, person))
 
@@ -216,18 +219,18 @@ def main():
 
             # age & gender detection
 
-            if people:  # key is not None and key & 0xFF == ord('d') and people:
+            if people and key is not None and key & 0xFF == ord('d'):
                 age_gender_start = time.time()
 
-                _, people_data, _ = zip(*people)
-                people_bboxes, _ = zip(*people_data)
+                # _, people_data, _ = zip(*people)
+                # people_bboxes, _ = zip(*people_data)
 
-                predictions = age_gender_predictor(left_frame, people_bboxes)
+                # predictions = age_gender_predictor(left_frame, people_bboxes)
 
-                for i, gender, age in predictions:
-                    people[i] = (people[i][0], people[i][1], (gender, age))
+                # for i, gender, age in predictions:
+                #     people[i] = (people[i][0], people[i][1], (gender, age))
 
-                age_gender_elapsed = time.time() - age_gender_start
+                age_gender_elapsed = 1e-3  # time.time() - age_gender_start
             else:
                 age_gender_elapsed = 1e-3
 
@@ -236,20 +239,21 @@ def main():
             frame_elapsed = end - cap_start
             start = end
 
-            print('\rFPS: %.2f; CAP: %.2f; DISP: %.2f; SKLTN: %.2f; TRACK: %.2f; AGE: %.2f; FRAME: %.2f' %
-                  (1/elapsed, 1/cap_elapsed, 1/disp_elapsed, 1/skeleton_elapsed, 1/tracking_elapsed, 1/age_gender_elapsed, 1/frame_elapsed), end='', flush=True)
+            print('\rFPS: %.2f; CAP: %.2f; DISP: %.2f; SKLTN: %.2f; TRACK: %.2f; AGE: %.2f; FRAME: %.2f, PPL_FOUND: %i' %
+                  (1/elapsed, 1/cap_elapsed, 1/disp_elapsed, 1/skeleton_elapsed, 1/tracking_elapsed, 1/age_gender_elapsed, 1/frame_elapsed, len(people)), end='', flush=True)
+
+            display_image = cv.cvtColor(left_frame, cv.COLOR_GRAY2BGR)
+
+            display_image[..., 2] = np.uint8(
+                255*np.clip((np.float32(display_image[..., 2]) / 255) + 0.9*min_max_norm(np.max(joints_map, axis=-1)), 0, 1))
+            display_image[..., 1] = np.uint8(
+                255*np.clip((np.float32(display_image[..., 1]) / 255) + 0.5*min_max_norm(np.max(np.linalg.norm(bones_map, axis=-1), axis=-1)), 0, 1))
 
             if people:
                 _, people_data, _ = zip(*people)
                 _, skeletons = zip(*people_data)
 
-                display_image = draw_skeleton(left_frame, skeletons)
-
-                display_image[..., 2] = np.uint8(
-                    255*np.clip((np.float32(display_image[..., 2]) / 255) + 0.9*min_max_norm(np.max(joints_map, axis=-1)), 0, 1))
-                display_image[..., 1] = np.uint8(
-                    255*np.clip((np.float32(display_image[..., 1]) / 255) + 0.5*min_max_norm(np.max(np.linalg.norm(bones_map, axis=-1), axis=-1)), 0, 1))
-
+                display_image = draw_skeleton(display_image, skeletons)
                 for id_, (bbox, _), extra in people:
                     cv.rectangle(display_image, (int(bbox[0]), int(bbox[1])),
                                  (int(bbox[2]), int(bbox[3])), (32, 32, 225))
@@ -265,7 +269,7 @@ def main():
                                cv.FONT_HERSHEY_SIMPLEX, 0.5, (160, 32, 225), 2)
 
             cv.imshow('demo', display_image)
-            cv.imshow('disparity', prepare_for_vis(disparity_map))
+            #cv.imshow('disparity', prepare_for_vis(disparity_map))
 
             if config.DEBUG_WRITE:
                 if isinstance(writer, int):
@@ -273,19 +277,19 @@ def main():
                     if writer > 2:
                         writer = cv.VideoWriter('./demo.mp4', cv.VideoWriter_fourcc(*'avc1'), 1/elapsed, (int(
                             cap.get(cv.CAP_PROP_FRAME_WIDTH)), int(cap.get(cv.CAP_PROP_FRAME_HEIGHT))))
-                        disp_writer = cv.VideoWriter('./demo-disps.mp4', cv.VideoWriter_fourcc(*'avc1'), 1/elapsed, (int(
-                            cap.get(cv.CAP_PROP_FRAME_WIDTH)), int(cap.get(cv.CAP_PROP_FRAME_HEIGHT))), False)
+                        # disp_writer = cv.VideoWriter('./demo-disps.mp4', cv.VideoWriter_fourcc(*'avc1'), 1/elapsed, (int(
+                        #    cap.get(cv.CAP_PROP_FRAME_WIDTH)), int(cap.get(cv.CAP_PROP_FRAME_HEIGHT))), False)
                         left_writer = cv.VideoWriter('./demo-lefts.mp4', cv.VideoWriter_fourcc(*'avc1'), 1/elapsed, (int(
                             cap.get(cv.CAP_PROP_FRAME_WIDTH)), int(cap.get(cv.CAP_PROP_FRAME_HEIGHT))), False)
                         right_writer = cv.VideoWriter('./demo-rights.mp4', cv.VideoWriter_fourcc(*'avc1'), 1/elapsed, (int(
                             cap.get(cv.CAP_PROP_FRAME_WIDTH)), int(cap.get(cv.CAP_PROP_FRAME_HEIGHT))), False)
                 else:
                     writer.write(display_image)
-                    disp_writer.write(prepare_for_vis(disparity_map))
+                    # disp_writer.write(prepare_for_vis(disparity_map))
                     left_writer.write(left_frame)
                     right_writer.write(right_frame)
 
-            key = cv.waitKey(1000)
+            key = cv.waitKey(1)
             if key == 27:
                 break
             if key & 0xFF == ord('q'):
@@ -298,7 +302,7 @@ def main():
         if config.DEBUG_WRITE:
             if not isinstance(writer, int):
                 writer.release()
-                disp_writer.release()
+                # disp_writer.release()
                 left_writer.release()
                 right_writer.release()
 

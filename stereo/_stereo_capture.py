@@ -47,11 +47,16 @@ class _StereoCaptureFileImpl:
 
 class StereoCapture:
     def __init__(self, source, stereo_params=None):
+        self._mono = False
         if isinstance(source, int):
             self._cap = cv.VideoCapture(source)
             #self._cap.set(cv.CAP_PROP_FOURCC, cv.VideoWriter_fourcc(*'Y16 '))
-        elif isinstance(source, tuple) and len(source) == 2 and isinstance(source[0], str) and isinstance(source[1], str):
-            self._cap = _StereoCaptureFileImpl(*source)
+        elif isinstance(source, tuple) and len(source) == 2:
+            if isinstance(source[0], str) and isinstance(source[1], str):
+                self._cap = _StereoCaptureFileImpl(*source)
+            else:
+                self._cap = cv.VideoCapture(source[0])
+                self._mono = bool(source[1])
 
         if stereo_params is None:
             self._stereo_params = None
@@ -69,7 +74,11 @@ class StereoCapture:
         if not ret:
             return ret, (frame, frame)
         else:
-            _, second, first = cv.split(frame)
+            if self._mono:
+                second = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
+                first = second
+            else:
+                _, second, first = cv.split(frame)
 
             if self._stereo_params is None:
                 return ret, (first, second)

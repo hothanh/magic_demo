@@ -63,7 +63,7 @@ def get_skin_areas(img, face_rects, landmark_predictor):
 
         points = np.int32((points - center) @ R + center)
 
-        bbox_larger = np.min(points, axis=0), np.max(points, axis=0)
+        bbox_larger = np.maximum(0, np.min(points, axis=0)), np.maximum(0, np.max(points, axis=0))
 
         w, h = bbox_larger[1] - bbox_larger[0]
 
