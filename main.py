@@ -2,7 +2,7 @@ import config
 import cv2 as cv
 import numpy as np
 import os
-from detectors import AgeGenderPredictor, SkeletonDetector, BODY_MODEL
+from detectors import SkeletonDetector, BODY_MODEL
 from stereo import DisparityCalculator, StereoCapture, StereoParams, prepare_for_vis
 import time
 import random
@@ -90,7 +90,7 @@ def main():
     if not os.path.exists(extrinsics_path):
         raise RuntimeError('Can\'t find a extrinsics file!')
 
-    skeleton_model_path = os.path.join(ROOT_DIR, 'models', 'pose-unet-128x160.pb')
+    skeleton_model_path = os.path.join(ROOT_DIR, 'models', 'pose-unet-96x128.pb')
     if not os.path.exists(skeleton_model_path):
         raise RuntimeError('Can\'t find a skeleton detector model!')
 
@@ -118,7 +118,7 @@ def main():
     # if not os.path.exists(age_features_stat_path):
     #     raise RuntimeError('Can\'t find an age features statistics file!')
 
-    skeleton_detector = SkeletonDetector(skeleton_model_path, (80, 64), 8)
+    skeleton_detector = SkeletonDetector(skeleton_model_path, (128, 96), 8)
 
     # age_gender_predictor = AgeGenderPredictor(
     #     facial_landmarks_model_path, age_pca_path, gender_svm_path, age_svm_path, age_svr_path, age_features_stat_path)
@@ -157,9 +157,6 @@ def main():
             cap_elapsed = time.time() - cap_start
             if not ret:
                 break
-
-            left_frame = cv.resize(left_frame, (left_frame.shape[1]//2, left_frame.shape[0]//2))
-            right_frame = cv.resize(right_frame, (right_frame.shape[1]//2, right_frame.shape[0]//2))
 
             # disparity calculation
 
@@ -225,7 +222,7 @@ def main():
             # age & gender detection
 
             if people and key is not None and key & 0xFF == ord('d'):
-                age_gender_start = time.time()
+                # age_gender_start = time.time()
 
                 # _, people_data, _ = zip(*people)
                 # people_bboxes, _ = zip(*people_data)
