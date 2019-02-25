@@ -42,6 +42,8 @@ class _StereoCaptureFileImpl:
             return True, frame
 
     def release(self):
+        if not xunit.DeInitExtensionUnit():
+            print('DeInitExtensionUnit failed')
         self._left_cap.release()
         self._right_cap.release()
 
