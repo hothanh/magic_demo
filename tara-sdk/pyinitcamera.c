@@ -14,8 +14,8 @@
 #include <fcntl.h>
 #include <sys/ioctl.h>
 
-#include <iostream>
-#include <limits>
+//#include <iostream>
+//include <limits>
 
 #define VID			"2560"
 #define See3CAM_STEREO		"c114"
@@ -219,8 +219,6 @@ typedef struct {
 IMUCONFIG_TypeDef				glIMUConfig;
 IMUDATAINPUT_TypeDef				glIMUInput;
 
-TaraRev g_eTaraRev;
-			
 BOOL						g_IsIMUConfigured = FALSE;
 float						glAccSensMult = 0;
 float						glGyroSensMult = 0;
@@ -454,7 +452,7 @@ BOOL SetStreamModeStereo(UINT32 iStreamMode)
 {
 	BOOL timeout = TRUE;
 	int ret = 0;
-	unsigned int start, end = 0;
+	//unsigned int start, end = 0;
 
 	//Initialize the buffer
 	memset(g_out_packet_buf, 0x00, sizeof(g_out_packet_buf));
@@ -474,7 +472,7 @@ BOOL SetStreamModeStereo(UINT32 iStreamMode)
 	}
 
 	/* Read the status from the device */
-	start = GetTickCount();
+	//start = GetTickCount();
 	while(timeout)
 	{
 		/* Get a report from the device */
@@ -492,13 +490,13 @@ BOOL SetStreamModeStereo(UINT32 iStreamMode)
 					}
 			}
 	 	}
-		end = GetTickCount();
-		if(end - start > TIMEOUT)
-		{
-			printf("%s(): Timeout occurred\n", __func__);
-			timeout = FALSE;
-			return FALSE;
-		}
+		//end = GetTickCount();
+		//if(end - start > TIMEOUT)
+		//{
+		//	printf("%s(): Timeout occurred\n", __func__);
+		//	timeout = FALSE;
+		//	return FALSE;
+		//}
 	}
 	return TRUE;
 }
@@ -507,7 +505,7 @@ BOOL SetManualExposureStereo(INT32 ExposureValue)
 {
 	BOOL timeout = TRUE;
 	int ret = 0;
-	unsigned int start, end = 0;
+	//unsigned int start, end = 0;
 
 	if((ExposureValue > SEE3CAM_STEREO_EXPOSURE_MAX) || (ExposureValue < SEE3CAM_STEREO_EXPOSURE_MIN))
 	{
@@ -537,7 +535,7 @@ BOOL SetManualExposureStereo(INT32 ExposureValue)
 	}
 
 	/* Read the status from the device */
-	start = GetTickCount();
+	//start = GetTickCount();
 	while(timeout)
 	{
 		/* Get a report from the device */
@@ -555,13 +553,13 @@ BOOL SetManualExposureStereo(INT32 ExposureValue)
 					}
 			}
 	 	}
-		end = GetTickCount();
-		if(end - start > TIMEOUT)
-		{
-			printf("%s(): Timeout occurred\n", __func__);
-			timeout = FALSE;
-			return FALSE;
-		}
+		//end = GetTickCount();
+		//if(end - start > TIMEOUT)
+		//{
+		//	printf("%s(): Timeout occurred\n", __func__);
+		//	timeout = FALSE;
+		//	return FALSE;
+		//}
 	}
 	return TRUE;
 }
@@ -580,7 +578,7 @@ BOOL SetAutoExposureStereo()
 {
 	BOOL timeout = TRUE;
 	int ret = 0;
-	unsigned int start, end = 0;
+	//unsigned int start, end = 0;
 	INT32 ExposureValue = 1;
 
 	//Initialize the buffer
@@ -605,7 +603,7 @@ BOOL SetAutoExposureStereo()
 	}
 
 	/* Read the status from the device */
-	start = GetTickCount();
+	//start = GetTickCount();
 	while(timeout)
 	{
 		/* Get a report from the device */
@@ -623,49 +621,131 @@ BOOL SetAutoExposureStereo()
 					}
 			}
 	 	}
-		end = GetTickCount();
-		if(end - start > TIMEOUT)
-		{
-			printf("%s(): Timeout occurred\n", __func__);
-			timeout = FALSE;
-			return FALSE;
-		}
+		//end = GetTickCount();
+		//if(end - start > TIMEOUT)
+		//{
+		//	printf("%s(): Timeout occurred\n", __func__);
+		//	timeout = FALSE;
+		//	return FALSE;
+		//}
 	}
 	return TRUE;
 }
 
-//Query the resolution for selected camera.
-void query_resolution(int deviceid)
+//function for finding number of devices connected,friendly name
+int GetListofDeviceseCon(void)
 {
-	int fd = 0;
-	
-	/* open the device and query the capabilities */
-	if ((fd = v4l2_open(DeviceInstances->listVidDevices[deviceid].device, O_RDWR | O_NONBLOCK, 0)) < 0)
-    	{
-        	g_printerr("ERROR opening V4L2 interface for %s\n", DeviceInstances->listVidDevices[deviceid].device);
-	        v4l2_close(fd);
-       		return;
-    	}
+	if(DEBUG_ENABLED)
+		printf("Get List of Devices eCon");
+		
+	struct udev_enumerate *enumerate;
+    struct udev_list_entry *devices, *dev_list_entry;
+    struct udev_device *dev;
 
-	//Query framesizes to get the supported resolutions for Y16 format.
-	struct v4l2_frmsizeenum frmsize;
-	frmsize.pixel_format = V4L2_PIX_FMT_Y16;
-	frmsize.index = 0;
-	    
-	while (xioctl(fd, VIDIOC_ENUM_FRAMESIZES, &frmsize) >= 0)
-	{
- 		if (frmsize.type == V4L2_FRMSIZE_TYPE_DISCRETE)
-		{
-			CameraResolutions.push_back(cv::Size(frmsize.discrete.width, frmsize.discrete.height));
-       		}
-	        else if (frmsize.type == V4L2_FRMSIZE_TYPE_STEPWISE)
-       		{
-		        CameraResolutions.push_back(cv::Size(frmsize.stepwise.max_width, frmsize.stepwise.max_height));
-      		}
-	       frmsize.index++;
-	}
-	v4l2_close(fd);
+    int num_dev = 0;
+    int fd = 0;
+    struct v4l2_capability v4l2_cap;
+	struct udev *udev = udev_new();
+
+    if (!udev)
+    {
+        /*use fall through method (sysfs)*/
+        g_print("Can't create udev...using sysfs method\n");
+    }
+
+	DeviceInstances = NULL;
+	DeviceInstances = g_new0( LDevices, 1);
+    DeviceInstances->listVidDevices = NULL;
+
+    /* Create a list of the devices in the 'v4l2' subsystem. */
+    enumerate = udev_enumerate_new(udev);
+    udev_enumerate_add_match_subsystem(enumerate, "video4linux");
+    udev_enumerate_scan_devices(enumerate);
+    devices = udev_enumerate_get_list_entry(enumerate);
+    /* For each item enumerated, print out its information.
+        udev_list_entry_foreach is a macro which expands to
+        a loop. The loop will be executed for each member in
+        devices, setting dev_list_entry to a list entry
+        which contains the device's path in /sys. */
+    udev_list_entry_foreach(dev_list_entry, devices)
+    {
+        const char *path;
+
+        /* Get the filename of the /sys entry for the device
+            and create a udev_device object (dev) representing it */
+        path = udev_list_entry_get_name(dev_list_entry);
+        dev = udev_device_new_from_syspath(udev, path);
+
+        /* usb_device_get_devnode() returns the path to the device node
+            itself in /dev. */
+        const gchar *v4l2_device = udev_device_get_devnode(dev);
+
+        /* open the device and query the capabilities */
+        if ((fd = v4l2_open(v4l2_device, O_RDWR | O_NONBLOCK, 0)) < 0)
+        {
+            g_printerr("ERROR opening V4L2 interface for %s\n", v4l2_device);
+            v4l2_close(fd);
+            continue; /*next dir entry*/
+        }
+
+        if (ioctl(fd, VIDIOC_QUERYCAP, &v4l2_cap) < 0)
+        {
+            perror("VIDIOC_QUERYCAP error");
+            g_printerr("   couldn't query device %s\n", v4l2_device);
+            v4l2_close(fd);
+            continue; /*next dir entry*/
+        }
+        v4l2_close(fd);
+
+        num_dev++;
+        /* Update the device list*/
+        DeviceInstances->listVidDevices = g_renew(VidDevice,
+            DeviceInstances->listVidDevices,
+            num_dev);
+        DeviceInstances->listVidDevices[num_dev-1].device = g_strdup(v4l2_device);
+	DeviceInstances->listVidDevices[num_dev-1].deviceID = atoi(DeviceInstances->listVidDevices[num_dev-1].device+10);
+        DeviceInstances->listVidDevices[num_dev-1].friendlyname = g_strdup((gchar *) v4l2_cap.card);
+        DeviceInstances->listVidDevices[num_dev-1].bus_info = g_strdup((gchar *) v4l2_cap.bus_info);
+        
+
+        /* The device pointed to by dev contains information about
+            the v4l2 device. In order to get information about the
+            USB device, get the parent device with the
+            subsystem/devtype pair of "usb"/"usb_device". This will
+            be several levels up the tree, but the function will find
+            it.*/
+        dev = udev_device_get_parent_with_subsystem_devtype(
+                dev,
+                "usb",
+                "usb_device");
+        if (!dev)
+        {
+            printf("Unable to find parent usb device.");
+		    DeviceInstances->listVidDevices[num_dev-1].vendor = NULL;
+		    DeviceInstances->listVidDevices[num_dev-1].product = NULL;
+            continue;
+        }
+
+        /* From here, we can call get_sysattr_value() for each file
+            in the device's /sys entry. The strings passed into these
+            functions (idProduct, idVendor, etc.) correspond
+            directly to the files in the directory which represents
+            the USB device. Note that USB strings are Unicode, UCS2
+            encoded, but the strings returned from
+            udev_device_get_sysattr_value() are UTF-8 encoded. */
+       
+        DeviceInstances->listVidDevices[num_dev-1].vendor = g_strdup((gchar*)udev_device_get_sysattr_value(dev, "idVendor"));
+        DeviceInstances->listVidDevices[num_dev-1].product =  g_strdup((gchar*)udev_device_get_sysattr_value(dev, "idProduct"));
+
+        udev_device_unref(dev);
+    }
+    /* Free the enumerator object */
+    udev_enumerate_unref(enumerate);
+
+    DeviceInstances->num_devices = num_dev;
+    return(num_dev);
 }
+//Query the resolution for selected camera.
 
 bool GetDeviceIDeCon(int *DeviceID)
 {
@@ -673,7 +753,7 @@ bool GetDeviceIDeCon(int *DeviceID)
 		printf("Get DeviceID eCon");
 			
 	short int index=-1, NoDevicesConnected = -1;
-	int ResolutionID = -1;
+	//int ResolutionID = -1;
 	
 	//Get the list of devices connected
 	NoDevicesConnected = GetListofDeviceseCon();
@@ -698,7 +778,7 @@ bool GetDeviceIDeCon(int *DeviceID)
 
 	//User Input of the Device ID
 	printf("\nEnter the Device ID to Stream : ");
-	scanf("%d",*DeviceID);
+	scanf("%d",DeviceID);
 
 	//Check for a valid ID
 	if(*DeviceID < 0)
@@ -837,7 +917,7 @@ static PyObject *InitCamera(PyObject *self, PyObject *args)
 	//Mat creation
 	//InterleavedFrame.create(ImageSize.height, ImageSize.width, CV_8UC2);
 
-	return PyLong_FromLong(*DeviceID);
+	return PyLong_FromLong(DeviceID);
 }
 
 //define module's methods

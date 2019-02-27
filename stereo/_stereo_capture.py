@@ -1,6 +1,6 @@
 import cv2 as cv
 import numpy as np
-import xunit
+import tara
 
 
 class _StereoCaptureFileImpl:
@@ -61,22 +61,22 @@ class StereoCapture:
         #    else:
         #        self._cap = cv.VideoCapture(source[0])
         #        self._mono = bool(source[1])
-        self._cap = cv.VideoCapture(deviceid)
+        self._cap = cv.VideoCapture(self.deviceid)
         #Setting up Y16 Format
-        sefl._cap.set(cv.CV_CAP_PROP_FOURCC, cv.CV_FOURCC('Y', '1', '6', ' '));
+        self._cap.set(cv.CAP_PROP_FOURCC, cv.VideoWriter_fourcc('Y', '1', '6', ' '));
         
         #Setting up FrameRate
-        sefl._cap.set(cv.CV_CAP_PROP_FPS, 60);
+        self._cap.set(cv.CAP_PROP_FPS, 60);
         
         #Setting width and height
-        sefl._cap.set(cv.CV_CAP_PROP_FRAME_WIDTH, 640);
-        sefl._cap.set(cv.CV_CAP_PROP_FRAME_HEIGHT, 480);
+        self._cap.set(cv.CAP_PROP_FRAME_WIDTH, 640);
+        self._cap.set(cv.CAP_PROP_FRAME_HEIGHT, 480);
         
         #y16 format support
-        sefl._cap.set(cv.CV_CAP_PROP_CONVERT_RGB, 0);
+        self._cap.set(cv.CAP_PROP_CONVERT_RGB, 0);
         
         #Setting to default Brightness
-        sefl._cap.set(cv.CV_CAP_PROP_BRIGHTNESS, 4/7);
+        self._cap.set(cv.CAP_PROP_BRIGHTNESS, 4/7);
         
         #Mat creation
         self._interleavedframe = cv.CreateMat(640, 480, cv.CV_8UC2);

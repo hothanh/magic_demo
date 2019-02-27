@@ -90,7 +90,7 @@ def main():
     if not os.path.exists(extrinsics_path):
         raise RuntimeError('Can\'t find a extrinsics file!')
 
-    skeleton_model_path = os.path.join(ROOT_DIR, 'models', 'pose-unet-96x128.pb')
+    skeleton_model_path = os.path.join(ROOT_DIR, 'models', 'pose-unet-128x160.pb')
     if not os.path.exists(skeleton_model_path):
         raise RuntimeError('Can\'t find a skeleton detector model!')
 
@@ -118,7 +118,7 @@ def main():
     # if not os.path.exists(age_features_stat_path):
     #     raise RuntimeError('Can\'t find an age features statistics file!')
 
-    skeleton_detector = SkeletonDetector(skeleton_model_path, (128, 96), 8)
+    skeleton_detector = SkeletonDetector(skeleton_model_path, (96, 64), 8)
 
     # age_gender_predictor = AgeGenderPredictor(
     #     facial_landmarks_model_path, age_pca_path, gender_svm_path, age_svm_path, age_svr_path, age_features_stat_path)
@@ -132,6 +132,9 @@ def main():
         cap = StereoCapture(config.VIDEO_SOURCE, stereo_params)
     else:
         cap = StereoCapture(config.VIDEO_SOURCE)
+
+    print('Set FrameRate')
+    cap.set(cv.CAP_PROP_FPS,60)
 
     print('Capture: (%i, %i) %.2f' % (int(
         cap.get(cv.CAP_PROP_FRAME_WIDTH)), int(cap.get(cv.CAP_PROP_FRAME_HEIGHT)), cap.get(cv.CAP_PROP_FPS)), flush=True)
