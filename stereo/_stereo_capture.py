@@ -78,18 +78,10 @@ class StereoCapture:
         #Setting to default Brightness
         self._cap.set(cv.CAP_PROP_BRIGHTNESS, 4/7);
         
-        #Mat creation
-        self._interleavedframe = cv.CreateMat(640, 480, cv.CV_8UC2);
-        
         if stereo_params is None:
             self._stereo_params = None
         else:
             self._stereo_params = stereo_params
-        if not xunit.InitExtensionUnit('usb-c0030000.ehci-1.1'):
-            print('InitExtensionUnit failed')
-        if not xunit.SetAutoExposureStereo():
-            print('SetAutoExposureStereo failed')
-
     def get(self, prop):
         return self._cap.get(prop)
 
