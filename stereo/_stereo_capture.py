@@ -51,16 +51,36 @@ class _StereoCaptureFileImpl:
 class StereoCapture:
     def __init__(self, source, stereo_params=None):
         self._mono = False
-        if isinstance(source, int):
-            self._cap = cv.VideoCapture(source)
-            #self._cap.set(cv.CAP_PROP_FOURCC, cv.VideoWriter_fourcc(*'Y16 '))
-        elif isinstance(source, tuple) and len(source) == 2:
-            if isinstance(source[0], str) and isinstance(source[1], str):
-                self._cap = _StereoCaptureFileImpl(*source)
-            else:
-                self._cap = cv.VideoCapture(source[0])
-                self._mono = bool(source[1])
-
+        self.deviceid = tara.InitCamera()
+        #if isinstance(source, int):
+        #    self._cap = cv.VideoCapture(source)
+        #    #self._cap.set(cv.CAP_PROP_FOURCC, cv.VideoWriter_fourcc(*'Y16 '))
+        #elif isinstance(source, tuple) and len(source) == 2:
+        #    if isinstance(source[0], str) and isinstance(source[1], str):
+        #        self._cap = _StereoCaptureFileImpl(*source)
+        #    else:
+        #        self._cap = cv.VideoCapture(source[0])
+        #        self._mono = bool(source[1])
+        self._cap = cv.VideoCapture(deviceid)
+        #Setting up Y16 Format
+        sefl._cap.set(cv.CV_CAP_PROP_FOURCC, cv.CV_FOURCC('Y', '1', '6', ' '));
+        
+        #Setting up FrameRate
+        sefl._cap.set(cv.CV_CAP_PROP_FPS, 60);
+        
+        #Setting width and height
+        sefl._cap.set(cv.CV_CAP_PROP_FRAME_WIDTH, 640);
+        sefl._cap.set(cv.CV_CAP_PROP_FRAME_HEIGHT, 480);
+        
+        #y16 format support
+        sefl._cap.set(cv.CV_CAP_PROP_CONVERT_RGB, 0);
+        
+        #Setting to default Brightness
+        sefl._cap.set(cv.CV_CAP_PROP_BRIGHTNESS, 4/7);
+        
+        #Mat creation
+        self._interleavedframe = cv.CreateMat(640, 480, cv.CV_8UC2);
+        
         if stereo_params is None:
             self._stereo_params = None
         else:
