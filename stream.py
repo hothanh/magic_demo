@@ -33,7 +33,7 @@ def main():
         if cv.waitKey(1) & 0xFF == ord('q'):
             break
     cap.release()
-    cv.distroyAllWindows()
+    cv.destroyAllWindows()
 
 if __name__ == "__main__":
     main()
