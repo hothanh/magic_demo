@@ -72,7 +72,7 @@ class StereoCapture:
         self._cap.set(cv.CAP_PROP_FRAME_HEIGHT, 480);
         
         #y16 format support
-        self._cap.set(cv.CAP_PROP_CONVERT_RGB, 0);
+        #self._cap.set(cv.CAP_PROP_CONVERT_RGB, 0);
         
         #Setting to default Brightness
         self._cap.set(cv.CAP_PROP_BRIGHTNESS, 4/7);

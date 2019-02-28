@@ -7,6 +7,8 @@ from stereo import DisparityCalculator, StereoCapture, StereoParams, prepare_for
 import time
 import random
 
+ROOT_DIR = os.path.dirname(__file__)
+
 def main():
     intrinsics_path = os.path.join(ROOT_DIR, 'models', 'intrinsics.yml')
     if not os.path.exists(intrinsics_path):
@@ -28,7 +30,10 @@ def main():
         ret, (left_frame, right_frame) = cap.read()
         cv.imshow('left',left_frame);
         cv.imshow('right',right_frame);
-        if cv.waitKey(1) && 0xFF == orq('q'):
+        if cv.waitKey(1) & 0xFF == ord('q'):
             break
     cap.release()
     cv.distroyAllWindows()
+
+if __name__ == "__main__":
+    main()
