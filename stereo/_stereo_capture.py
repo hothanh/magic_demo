@@ -42,8 +42,6 @@ class _StereoCaptureFileImpl:
             return True, frame
 
     def release(self):
-        if not xunit.DeInitExtensionUnit():
-            print('DeInitExtensionUnit failed')
         self._left_cap.release()
         self._right_cap.release()
 
@@ -61,6 +59,7 @@ class StereoCapture:
         #    else:
         #        self._cap = cv.VideoCapture(source[0])
         #        self._mono = bool(source[1])
+        print('DEVICE ID = %i'%(int(self.deviceid)), flush=True)
         self._cap = cv.VideoCapture(self.deviceid)
         #Setting up Y16 Format
         self._cap.set(cv.CAP_PROP_FOURCC, cv.VideoWriter_fourcc('Y', '1', '6', ' '));
